@@ -8,7 +8,7 @@ import * as SecureStore from "expo-secure-store";
 const getBaseUrl = () => {
   // You can manually set this based on your environment
   // For Android emulator:
-  return "http://192.168.143.164:3000";
+  return "http://192.168.32.164:3000";
   // For iOS simulator: return "http://localhost:3000";
   // For physical device: return "http://192.168.x.x:3000"; (your computer's IP)
 };

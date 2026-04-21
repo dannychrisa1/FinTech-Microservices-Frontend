@@ -167,7 +167,7 @@ export default function LoginScreen() {
                 isLoading={loadingProvider === "facebook"}
               />
             </View> */}
-            <View className="flex-row justify-center mb-8">
+            <View className="flex-row justify-center mb-8 mt-6">
               <Text className="text-gray-600 font-poppins">
                 Don&apos;t have an account?{" "}
               </Text>

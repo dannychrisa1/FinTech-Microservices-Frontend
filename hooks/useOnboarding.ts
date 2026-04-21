@@ -8,11 +8,12 @@ export const useOnboarding = () => {
   useEffect(() => {
     const checkOnboarding = async () => {
       const completed = await hasCompletedOnboarding();
+      console.log("Onboarding check - completed:", completed); // Debug log
       setShowOnboarding(!completed);
       setIsReady(true);
     };
     checkOnboarding();
   }, []);
 
-  return { showOnboarding, isReady };
+  return { showOnboarding, setShowOnboarding, isReady };
 };

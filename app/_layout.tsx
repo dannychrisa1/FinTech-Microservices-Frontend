@@ -4,7 +4,6 @@ import { useAppLock } from "@/hooks/useAppLock";
 import { useFonts } from "@/hooks/useFonts";
 import { useHydration } from "@/hooks/useHydration";
 import { useNavigationGuard } from "@/hooks/useNavigationGuard";
-import { useOnboarding } from "@/hooks/useOnboarding";
 import { useAuthStore } from "@/stores/authStore";
 import { Stack } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
@@ -20,19 +19,12 @@ export default function RootLayout() {
   // const { isDark, mode } = useThemeStore();
 
   const { fontsLoaded } = useFonts();
-  const { showOnboarding, isReady: onboardingReady } = useOnboarding();
   const { isHydrated } = useHydration();
 
   useAppLock();
-  useNavigationGuard(
-    isHydrated,
-    onboardingReady,
-    token,
-    showOnboarding,
-    isUnlocked,
-  );
+  useNavigationGuard(isHydrated);
 
-  const isLoading = !fontsLoaded || !onboardingReady || !isHydrated;
+  const isLoading = !fontsLoaded || !isHydrated;
 
   // Determine navigation theme
   // const navigationTheme = isDark ? DarkTheme : DefaultTheme;

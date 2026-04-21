@@ -1,12 +1,15 @@
+import { useOnboardingStore } from "@/stores/onboardingStore";
 import { setOnboardingCompleted } from "@/utils/onboarding";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function OnboardingScreen() {
+  const { setHasOnboarded } = useOnboardingStore();
   const handleGetStarted = async () => {
     // Mark onboarding as completed
     await setOnboardingCompleted();
+    setHasOnboarded(true);
     router.replace("/(routes)/login");
   };
 

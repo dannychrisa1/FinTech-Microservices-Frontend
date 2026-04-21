@@ -1,21 +1,20 @@
+import { useAuthStore } from "@/stores/authStore";
+import { useOnboardingStore } from "@/stores/onboardingStore";
 import { router, useSegments } from "expo-router";
 import { useEffect } from "react";
 
-export const useNavigationGuard = (
-  isHydrated: boolean,
-  isReady: boolean,
-  token: string | null,
-  showOnboarding: boolean,
-  isUnlocked: boolean,
-) => {
+export const useNavigationGuard = (isHydrated: boolean) => {
   const segments = useSegments();
 
+  const hasOnboarded = useOnboardingStore((state) => state.hasOnboarded);
+  const token = useAuthStore((state) => state.token);
+  const isUnlocked = useAuthStore((state) => state.isUnlocked);
+
   useEffect(() => {
-    if (!isHydrated || !isReady) return;
+    if (!isHydrated) return;
 
     const currentRoute = segments.join("/");
 
-    // Ignore modal screens - don't redirect when they are open
     const isModalRoute =
       currentRoute.includes("deposit") || currentRoute.includes("withdraw");
 
@@ -25,26 +24,31 @@ export const useNavigationGuard = (
     const inAuth = segments[0] === "(routes)";
     const inTabs = segments[0] === "(tabs)";
 
-    if (showOnboarding) {
-      if (!inOnboarding) router.replace("/onboarding");
+    // ONBOARDING
+    if (!hasOnboarded && segments[0] !== "onboarding") {
+      router.replace("/onboarding");
       return;
     }
 
     // Not logged in
-    if (!token) {
-      if (!inAuth) router.replace("/(routes)/login");
+    if (hasOnboarded && !token && segments[0] !== "(routes)") {
+      router.replace("/(routes)/login");
       return;
     }
 
-    // Logged in but locked (needs passcode)
-    if (token && !isUnlocked) {
+    // LOCKED
+    if (
+      token &&
+      !isUnlocked &&
+      segments.join("/") !== "(routes)/passcode-login"
+    ) {
       router.replace("/(routes)/passcode-login");
       return;
     }
 
-    // Logged in and unlocked
-    if (token && isUnlocked) {
-      if (!inTabs) router.replace("/(tabs)");
+    // Fully authenticated
+    if (token && isUnlocked && segments[0] !== "(tabs)") {
+      router.replace("/(tabs)");
     }
-  }, [token, isUnlocked, isHydrated, isReady, showOnboarding, segments]);
+  }, [segments, isHydrated, hasOnboarded, token, isUnlocked]);
 };
