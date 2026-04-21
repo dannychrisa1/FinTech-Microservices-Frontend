@@ -1,98 +1,278 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useAccount } from "@/services/account";
+import { useTransactions } from "@/services/transaction";
+import { useAuthStore } from "@/stores/authStore";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import { router } from "expo-router";
+import { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { RefreshControl } from "react-native-gesture-handler";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function DashboardScreen() {
+  const user = useAuthStore((state) => state.user);
+  const [filter, setFilter] = useState<
+    "all" | "DEPOSIT" | "WITHDRAW" | "TRANSFER"
+  >("all");
+  const backendType = filter === "all" ? undefined : filter;
+  const logout = useAuthStore((state) => state.logout);
+  const {
+    data: account,
+    isLoading: accountLoading,
+    refetch: refetchAccount,
+  } = useAccount();
+  const {
+    data: transactions,
+    isLoading: transactionsLoading,
+    refetch: refetchTransactions,
+  } = useTransactions({
+    page: 1,
+    limit: 10,
+    type: backendType,
+  });
 
-export default function HomeScreen() {
+  // Refresh data when screen comes into focus (after returning from deposit)
+  useFocusEffect(
+    useCallback(() => {
+      refetchAccount();
+      refetchTransactions();
+    }, [refetchAccount, refetchTransactions]),
+  );
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "NGN",
+      minimumFractionDigits: 2,
+    }).format(amount);
+  };
+
+  // Helper to format date from backend's createdAt (ISO string)
+  const formatDate = (isoString: string) => {
+    return new Date(isoString).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const getTransactionIcon = (type: string) => {
+    const t = type?.toLowerCase();
+    switch (t) {
+      case "deposit":
+        return "arrow-down-circle";
+      case "withdraw":
+        return "arrow-up-circle";
+      case "transfer":
+        return "swap-horizontal";
+      default:
+        return "receipt";
+    }
+  };
+
+  const getTransactionColor = (type: string) => {
+    const t = type?.toLowerCase();
+    switch (t) {
+      case "deposit":
+        return "text-green-600";
+      case "withdraw":
+        return "text-red-600";
+      default:
+        return "text-gray-700";
+    }
+  };
+
+  const getAmountPrefix = (type: string) => {
+    return type?.toLowerCase() === "deposit" ? "+" : "-";
+  };
+
+  // Placeholder actions (replace with navigation later)
+  const handleDeposit = () => router.push("/deposit");
+  const handleWithdraw = () => router.push("/withdraw");
+  const handleTransfer = () => router.push("/transfer");
+  const handleSeeAll = () => router.push("/transactions");
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/(routes)/login");
+  };
+
+  if (accountLoading || transactionsLoading) {
+    return (
+      <SafeAreaView className="flex-1 justify-center items-center">
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </SafeAreaView>
+    );
+  }
+
+  const balance = account?.balance ?? 0;
+  const accountNumber =
+    user?.accountNumber ?? account?.data?.accountNumber ?? "••••••••";
+  const userName = user?.name ?? account?.data?.name ?? "User";
+
+  const transactionList = transactions?.transactions ?? [];
+  const hasTransactions = transactionList.length > 0;
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView className="flex-1 bg-gray-50">
+      <ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={accountLoading || transactionsLoading}
+            onRefresh={() => {
+              refetchAccount();
+              refetchTransactions();
+            }}
+          />
+        }
+        className="flex-1 px-5"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View className="flex-row justify-between items-center pt-4 pb-2">
+          <View>
+            <Text className="text-2xl font-poppins-bold text-gray-900">
+              Welcome back,
+            </Text>
+            <Text className="text-xl font-poppins-semibold text-gray-700">
+              {userName} 👋
+            </Text>
+          </View>
+          <TouchableOpacity onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={24} color="#ef4444" />
+          </TouchableOpacity>
+        </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        {/* Balance Card */}
+        <View className="bg-blue-600 rounded-2xl p-6 mt-2 shadow-md">
+          <Text className="text-white/80 text-sm font-poppins mb-1">
+            Total Balance
+          </Text>
+          <Text className="text-white text-4xl font-poppins-bold">
+            {formatCurrency(balance)}
+          </Text>
+          <Text className="text-white/70 text-xs font-poppins mt-2">
+            Account: {accountNumber}
+          </Text>
+        </View>
+
+        {/* Quick Actions Grid */}
+        <View className="flex-row flex-wrap justify-between mt-6">
+          <ActionButton
+            icon="add-circle-outline"
+            label="Deposit"
+            onPress={handleDeposit}
+            color="#10b981"
+          />
+          <ActionButton
+            icon="remove-circle-outline"
+            label="Withdraw"
+            onPress={handleWithdraw}
+            color="#ef4444"
+          />
+          <ActionButton
+            icon="swap-horizontal-outline"
+            label="Transfer"
+            onPress={handleTransfer}
+            color="#3b82f6"
+          />
+          <ActionButton
+            icon="time-outline"
+            label="History"
+            onPress={handleSeeAll}
+            color="#6b7280"
+          />
+        </View>
+
+        {/* Recent Transactions */}
+        <View className="mt-6">
+          <View className="flex-row justify-between items-center mb-3">
+            <Text className="text-lg font-poppins-semibold text-gray-800">
+              Recent Transactions
+            </Text>
+            <TouchableOpacity onPress={handleSeeAll}>
+              <Text className="text-blue-600 font-poppins text-sm">
+                See all
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {hasTransactions ? (
+            transactionList.slice(0, 5).map((tx: any) => (
+              <View
+                key={tx?.id}
+                className="bg-white rounded-xl p-4 mb-3 flex-row justify-between items-center shadow-sm"
+              >
+                <View className="flex-row items-center flex-1">
+                  <View className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-3">
+                    <Ionicons
+                      name={getTransactionIcon(tx?.type)}
+                      size={22}
+                      color={getTransactionColor(tx?.type).replace("text-", "")}
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="font-poppins-semibold text-gray-800 capitalize">
+                      {tx.type?.toLowerCase()}
+                    </Text>
+                    <Text className="text-xs text-gray-400 font-poppins">
+                      {formatDate(tx?.createdAt)}
+                    </Text>
+                    {tx.counterparty && (
+                      <Text className="text-xs text-gray-500 mt-0.5">
+                        {tx.counterparty}
+                      </Text>
+                    )}
+                    {tx.description && (
+                      <Text className="text-xs text-gray-400 mt-0.5 italic">
+                        {tx.description}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <Text
+                  className={`font-poppins-semibold ${getTransactionColor(tx.type)}`}
+                >
+                  {getAmountPrefix(tx?.type)}
+                  {formatCurrency(tx?.amount)}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <Text className="text-center text-gray-500 font-poppins mt-4">
+              No transactions yet
+            </Text>
+          )}
+        </View>
+
+        {/* Extra spacing at bottom */}
+        <View className="h-8" />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
+// Reusable Quick Action Button Component
+interface ActionButtonProps {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  color: string;
+}
+
+const ActionButton = ({ icon, label, onPress, color }: ActionButtonProps) => (
+  <TouchableOpacity
+    onPress={onPress}
+    className="w-[22%] bg-white rounded-xl py-3 items-center shadow-sm"
+    activeOpacity={0.7}
+  >
+    <Ionicons name={icon} size={28} color={color} />
+    <Text className="text-xs font-poppins text-gray-600 mt-1">{label}</Text>
+  </TouchableOpacity>
+);
